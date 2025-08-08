@@ -61,8 +61,8 @@ function TicTacToe(){
 
   // Board/turn & starter
   const [board, setBoard] = useState(EMPTY);
-  const [xIsNext, setXIsNext] = useState(true);          // X turn?
-  const [starterMark, setStarterMark] = useState('X');    // who starts NEXT round
+  const [xIsNext, setXIsNext] = useState(true);
+  const [starterMark, setStarterMark] = useState('X');
 
   // Players (Human X; if AI enabled, AI plays O)
   const [player1, setPlayer1] = useState(localStorage.getItem("player1")||"Player 1"); // X
@@ -188,13 +188,13 @@ function TicTacToe(){
     if (!playAI || gameOver || xIsNext) return;
     const id = setTimeout(()=>{
       const move = aiChooseMove(board);
-      if (move!=null) placeMark(move, true);
+      if (move!=null) placeMark(move);
     }, 260);
     return ()=>clearTimeout(id);
   }, [board, xIsNext, playAI, gameOver, difficulty]);
 
   function endRound(r){
-    if (r){ // win
+    if (r){
       vibrate(110); winSound();
       setWinningLine(r.line);
       const winnerName = r.winner==="X" ? player1 : player2;
@@ -203,11 +203,11 @@ function TicTacToe(){
       if (streakHolder===winnerName) setCurrentStreak(cs=>cs+1);
       else { setStreakHolder(winnerName); setCurrentStreak(1); }
       setStreaks(st=>({...st, [winnerName]:Math.max(st[winnerName]||0, (streakHolder===winnerName? currentStreak+1 : 1))}));
-      setStarterMark(r.winner); // winner starts next
-    } else { // draw
+      setStarterMark(r.winner);
+    } else {
       vibrate(60); drawSound();
       setStatusMsg(`It's a draw.`);
-      setStarterMark(m => (m==='X' ? 'O' : 'X')); // alternate on draw (based on starter)
+      setStarterMark(m => (m==='X' ? 'O' : 'X'));
     }
   }
 
@@ -218,14 +218,13 @@ function TicTacToe(){
     next[i] = mark;
     setBoard(next);
     setJustPlaced(i);
-    vibrate(25); moveSound(mark);
+    moveSound(mark);
 
     const r = calculateWinner(next);
     if (r || !next.includes(null)){ endRound(r); return; }
     setXIsNext(v=>!v);
   }
 
-  // PvP: both players click; AI mode: only human (X) clicks
   function onCellClick(i){
     if (gameOver) return;
     if (playAI){
@@ -240,7 +239,7 @@ function TicTacToe(){
     setWinningLine([]);
     setJustPlaced(null);
     setStatusMsg("");
-    setXIsNext(starterMark==='X'); // if O starts & AI on, AI moves via effect
+    setXIsNext(starterMark==='X');
   }
 
   function resetScores(){
@@ -253,7 +252,6 @@ function TicTacToe(){
   const turnName = xIsNext ? player1 : player2;
   const themeBtnText = darkMode ? "Switch to Light Mode" : "Switch to Dark Mode";
 
-  // Overlay text classes (turn vs result)
   const turnOverlayClass =
     "pointer-events-none text-5xl sm:text-6xl font-extrabold tracking-wide select-none " +
     "text-gray-700/15 dark:text-slate-100/15";
@@ -261,27 +259,18 @@ function TicTacToe(){
     "pointer-events-none text-4xl sm:text-5xl font-extrabold tracking-wide select-none " +
     "text-gray-800/65 dark:text-slate-100/70";
 
-  /* Layout: board left (fills height with vh), sidebar right (stacks below on <lg) */
   return (
     <div className="w-full px-4 py-4 md:py-6 lg:py-8">
       <div className="max-w-6xl mx-auto flex flex-col lg:flex-row gap-6 items-start">
-        {/* LEFT: Board only (controls moved to sidebar) */}
+        {/* LEFT: Board */}
         <div className="flex-1 w-full">
-          {/* Board wrapper sized to fit tablets without scroll:
-              width = min(94vw, 78vh); keeps it visible on iPad Air portrait */}
-          <div
-            className="relative mx-auto"
-            style={{ width: 'min(94vw, 78vh)', maxWidth:'820px' }}
-          >
-            {/* Overlay: current turn (only when no result) */}
+          <div className="relative mx-auto" style={{ width: 'min(94vw, 78vh)', maxWidth:'820px' }}>
+            {/* ✅ FIX: allow clicks through this overlay */}
             {!gameOver && (
-              <div className="absolute inset-0 flex items-center justify-center z-10">
-                <div className={turnOverlayClass}>
-                  {turnName}
-                </div>
+              <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
+                <div className={turnOverlayClass}>{turnName}</div>
               </div>
             )}
-            {/* Overlay: result (win/draw) + Start New Game button */}
             {gameOver && (
               <div className="absolute inset-0 flex flex-col items-center justify-center z-20">
                 <div className={resultOverlayClass}>
@@ -296,9 +285,7 @@ function TicTacToe(){
               </div>
             )}
 
-            {/* The 3x3 grid */}
-            <div className="grid grid-cols-3 gap-3"
-                 style={{ height: 'min(94vw, 78vh)' }}>
+            <div className="grid grid-cols-3 gap-3" style={{ height: 'min(94vw, 78vh)' }}>
               {board.map((cell,idx)=>(
                 <button
                   key={idx}
@@ -320,10 +307,9 @@ function TicTacToe(){
           </div>
         </div>
 
-        {/* RIGHT: Sidebar / Controls + Scoreboard with tallies */}
+        {/* RIGHT: Sidebar */}
         <aside className="w-full lg:w-80 lg:min-w-72 border rounded-xl p-4 bg-white/70 backdrop-blur
                           dark:bg-slate-800/60 dark:border-slate-700">
-          {/* Names + colors */}
           <div className="mb-4">
             <div className="flex items-center gap-2 mb-2">
               <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-white border border-gray-300 text-gray-900
@@ -349,7 +335,6 @@ function TicTacToe(){
             </div>
           </div>
 
-          {/* Toggles */}
           <div className="mb-4 space-y-3">
             <div className="flex items-center gap-2">
               <input id="ai" type="checkbox" checked={playAI} onChange={e=>setPlayAI(e.target.checked)} />
@@ -377,7 +362,6 @@ function TicTacToe(){
             </div>
           </div>
 
-          {/* Scores + tallies */}
           <div className="mb-4">
             <h3 className="font-bold mb-1">Scores</h3>
             <div className="mb-3">
@@ -393,7 +377,6 @@ function TicTacToe(){
             </button>
           </div>
 
-          {/* Streaks */}
           <div>
             <h3 className="font-bold mb-1">Win Streaks</h3>
             {Object.keys(streaks).length===0 ? (
