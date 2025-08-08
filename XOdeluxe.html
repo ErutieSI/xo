@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <title>Tic Tac Toe Deluxe</title>
 <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
@@ -10,54 +10,48 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <script>tailwind.config={darkMode:'class'};</script>
 <style>
+  html,body { height:100%; }
   .cell-animate{transition:transform .2s ease}
   .cell-animate:active{transform:scale(.96)}
   @keyframes spin3D{0%{transform:rotateY(0)}100%{transform:rotateY(360deg)}}
   .win-spin{animation:spin3D 1s linear infinite;display:inline-block}
   @keyframes popAnim{0%{transform:scale(.5);opacity:0}60%{transform:scale(1.2);opacity:1}100%{transform:scale(1)}}
   .pop{animation:popAnim .22s ease;display:inline-block}
-  /* 3D-ish chunky mark */
   .mark-3d{
     text-shadow:
       0 1px 0 rgba(0,0,0,.25),
       0 2px 0 rgba(0,0,0,.20),
       0 3px 0 rgba(0,0,0,.15),
       0 4px 0 rgba(0,0,0,.10);
-    transform: translateZ(0); /* enable GPU */
+    transform: translateZ(0);
   }
 </style>
 </head>
-<body class="min-h-screen bg-gray-50 text-gray-900 dark:bg-slate-900 dark:text-slate-100 flex justify-center p-4">
-<div id="root" class="w-full max-w-5xl"></div>
+<body class="min-h-screen bg-gray-50 text-gray-900 dark:bg-slate-900 dark:text-slate-100">
+<div id="root" class="w-full"></div>
 
 <script type="text/babel">
 const { useState, useEffect, useMemo, useRef } = React;
 
 /* --- Tiny SVG Tally component --- */
 function Tally({ count, color }) {
-  // Groups of 5: four verticals + one diagonal slash
   const groups = Math.floor(count / 5);
   const rem = count % 5;
-  const OneGroup = ({ n }) => {
-    const w = 48, h = 28;
-    const xs = [6, 14, 22, 30]; // vertical lines
+  const One = ({ n }) => {
+    const w=48,h=28,xs=[6,14,22,30];
     return (
       <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} className="mr-1">
-        {/* verticals */}
         {xs.slice(0, Math.min(n,4)).map((x,i)=>(
           <line key={i} x1={x} y1="4" x2={x} y2="24" stroke={color} strokeWidth="3" strokeLinecap="round" />
         ))}
-        {/* diagonal when n==5 */}
-        {n===5 && (
-          <line x1="3" y1="23" x2="33" y2="5" stroke={color} strokeWidth="3" strokeLinecap="round" />
-        )}
+        {n===5 && <line x1="3" y1="23" x2="33" y2="5" stroke={color} strokeWidth="3" strokeLinecap="round" />}
       </svg>
     );
   };
   return (
     <div className="flex flex-wrap items-center">
-      {Array.from({length: groups}).map((_,i)=><OneGroup key={i} n={5} />)}
-      {rem>0 && <OneGroup n={rem} />}
+      {Array.from({length: groups}).map((_,i)=><One key={i} n={5} />)}
+      {rem>0 && <One n={rem} />}
     </div>
   );
 }
@@ -99,8 +93,7 @@ function TicTacToe(){
     if (!soundOn) return;
     ensureAudio();
     const ctx = audioCtxRef.current;
-    const o = ctx.createOscillator();
-    const g = ctx.createGain();
+    const o = ctx.createOscillator(); const g = ctx.createGain();
     o.type = type; o.frequency.value = freq; g.gain.value = vol;
     o.connect(g); g.connect(ctx.destination);
     const now = ctx.currentTime;
@@ -113,7 +106,7 @@ function TicTacToe(){
   function drawSound(){ beep(440,120); setTimeout(()=>beep(392,120),120); }
   function winSound(){ beep(523.25,110); setTimeout(()=>beep(659.25,110),110); setTimeout(()=>beep(783.99,160),220); }
 
-  // Persist settings
+  // Persist
   useEffect(()=>{
     localStorage.setItem("player1",player1);
     localStorage.setItem("player2",player2);
@@ -147,9 +140,7 @@ function TicTacToe(){
   // AI helpers
   function blockOrWinMove(mark, opp, brd){
     const lines = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
-    // Try to win
     for (const [i,j,k] of lines){ const L=[brd[i],brd[j],brd[k]]; if (L.filter(v=>v===mark).length===2 && L.includes(null)) return [i,j,k][L.indexOf(null)]; }
-    // Otherwise block
     for (const [i,j,k] of lines){ const L=[brd[i],brd[j],brd[k]]; if (L.filter(v=>v===opp ).length===2 && L.includes(null)) return [i,j,k][L.indexOf(null)]; }
     return null;
   }
@@ -220,7 +211,7 @@ function TicTacToe(){
     }
   }
 
-  function placeMark(i, fromAI=false){
+  function placeMark(i){
     if (board[i] || gameOver) return;
     const next = [...board];
     const mark = xIsNext ? "X" : "O";
@@ -231,16 +222,16 @@ function TicTacToe(){
 
     const r = calculateWinner(next);
     if (r || !next.includes(null)){ endRound(r); return; }
-    setStatusMsg("");
     setXIsNext(v=>!v);
   }
 
   // PvP: both players click; AI mode: only human (X) clicks
   function onCellClick(i){
+    if (gameOver) return;
     if (playAI){
-      if (xIsNext) placeMark(i, false); // only human can click
+      if (xIsNext) placeMark(i); // only human can click
     } else {
-      placeMark(i, false);              // PvP allows either side on their turn
+      placeMark(i);              // PvP allows either side on their turn
     }
   }
 
@@ -254,7 +245,7 @@ function TicTacToe(){
 
   function resetScores(){
     setScores({});
-    setStreaks({});      // optional: wipe streaks with score reset
+    setStreaks({});
     setCurrentStreak(0);
     setStreakHolder(null);
   }
@@ -262,74 +253,78 @@ function TicTacToe(){
   const turnName = xIsNext ? player1 : player2;
   const themeBtnText = darkMode ? "Switch to Light Mode" : "Switch to Dark Mode";
 
-  /* Layout: board left, sidebar right (stacks on mobile) */
+  // Overlay text classes (turn vs result)
+  const turnOverlayClass =
+    "pointer-events-none text-5xl sm:text-6xl font-extrabold tracking-wide select-none " +
+    "text-gray-700/15 dark:text-slate-100/15";
+  const resultOverlayClass =
+    "pointer-events-none text-4xl sm:text-5xl font-extrabold tracking-wide select-none " +
+    "text-gray-800/65 dark:text-slate-100/70";
+
+  /* Layout: board left (fills height with vh), sidebar right (stacks below on <lg) */
   return (
-    <div className="w-full">
-      <div className="flex flex-col lg:flex-row gap-6">
-        {/* LEFT: Board + controls */}
-        <div className="flex-1">
-          <h1 className="text-3xl font-extrabold text-center mb-1">Tic Tac Toe Deluxe</h1>
-          <p className="text-center mb-3">Turn: <span className="font-semibold">{turnName}</span></p>
-          {statusMsg && <p className="text-center font-semibold mb-3">{statusMsg}</p>}
-
-          <div className="flex items-center gap-3 mb-4">
-            <label className="flex items-center gap-2">
-              <input type="checkbox" checked={playAI} onChange={e=>setPlayAI(e.target.checked)} />
-              <span>Play vs AI (AI plays O)</span>
-            </label>
-            {playAI && (
-              <select
-                className="p-2 rounded border border-gray-300 bg-white text-gray-900
-                           dark:bg-slate-800 dark:border-slate-600 dark:text-slate-100"
-                value={difficulty} onChange={e=>setDifficulty(e.target.value)}>
-                <option>Beginner</option>
-                <option>Intermediate</option>
-                <option>Expert</option>
-              </select>
+    <div className="w-full px-4 py-4 md:py-6 lg:py-8">
+      <div className="max-w-6xl mx-auto flex flex-col lg:flex-row gap-6 items-start">
+        {/* LEFT: Board only (controls moved to sidebar) */}
+        <div className="flex-1 w-full">
+          {/* Board wrapper sized to fit tablets without scroll:
+              width = min(94vw, 78vh); keeps it visible on iPad Air portrait */}
+          <div
+            className="relative mx-auto"
+            style={{ width: 'min(94vw, 78vh)', maxWidth:'820px' }}
+          >
+            {/* Overlay: current turn (only when no result) */}
+            {!gameOver && (
+              <div className="absolute inset-0 flex items-center justify-center z-10">
+                <div className={turnOverlayClass}>
+                  {turnName}
+                </div>
+              </div>
             )}
-            <label className="flex items-center gap-2 ml-auto">
-              <input type="checkbox" checked={soundOn} onChange={e=>setSoundOn(e.target.checked)} />
-              <span>Sound</span>
-            </label>
-            <button
-              onClick={()=>setDarkMode(v=>!v)}
-              className="px-3 py-2 rounded bg-gray-700 text-white hover:bg-gray-600
-                         dark:bg-slate-600 dark:hover:bg-slate-500">
-              {themeBtnText}
-            </button>
-          </div>
+            {/* Overlay: result (win/draw) + Start New Game button */}
+            {gameOver && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center z-20">
+                <div className={resultOverlayClass}>
+                  {result ? `${result.winner==='X'?player1:player2} wins!` : 'Draw'}
+                </div>
+                <button
+                  onClick={nextRound}
+                  className="mt-4 px-4 py-2 rounded bg-blue-600 text-white font-semibold hover:bg-blue-500 pointer-events-auto"
+                >
+                  Start New Game
+                </button>
+              </div>
+            )}
 
-          <div className="grid grid-cols-3 gap-3 mb-4">
-            {board.map((cell,idx)=>(
-              <button
-                key={idx}
-                onClick={()=>onCellClick(idx)}
-                disabled={gameOver || (playAI && !xIsNext)}
-                className={`aspect-square rounded-lg shadow cell-animate border
-                            bg-white border-gray-300
-                            dark:bg-slate-700 dark:border-slate-600
-                            flex items-center justify-center text-6xl font-extrabold
-                            ${winningLine.includes(idx) ? 'border-4 border-green-800 dark:border-green-400' : ''}`}
-                style={{color: cell==="X" ? colorX : colorO}}>
-                <span className={`mark-3d ${winningLine.includes(idx) ? 'win-spin' : (justPlaced===idx ? 'pop' : '')}`}>
-                  {cell}
-                </span>
-              </button>
-            ))}
-          </div>
-
-          <div className="flex gap-3">
-            <button onClick={nextRound} className="flex-1 py-3 rounded bg-blue-600 text-white font-semibold hover:bg-blue-500">
-              Next Round
-            </button>
+            {/* The 3x3 grid */}
+            <div className="grid grid-cols-3 gap-3"
+                 style={{ height: 'min(94vw, 78vh)' }}>
+              {board.map((cell,idx)=>(
+                <button
+                  key={idx}
+                  onClick={()=>onCellClick(idx)}
+                  disabled={gameOver || (playAI && !xIsNext)}
+                  className={`relative rounded-xl shadow cell-animate border
+                              bg-white border-gray-300
+                              dark:bg-slate-700 dark:border-slate-600
+                              flex items-center justify-center text-[10vw] sm:text-6xl md:text-7xl font-extrabold
+                              ${winningLine.includes(idx) ? 'border-4 border-green-800 dark:border-green-400' : ''}`}
+                  style={{color: cell==="X" ? colorX : colorO}}
+                >
+                  <span className={`mark-3d ${winningLine.includes(idx) ? 'win-spin' : (justPlaced===idx ? 'pop' : '')}`}>
+                    {cell}
+                  </span>
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
-        {/* RIGHT: Sidebar / Scoreboard with tallies */}
+        {/* RIGHT: Sidebar / Controls + Scoreboard with tallies */}
         <aside className="w-full lg:w-80 lg:min-w-72 border rounded-xl p-4 bg-white/70 backdrop-blur
                           dark:bg-slate-800/60 dark:border-slate-700">
-          {/* Player 1 */}
-          <div className="mb-5">
+          {/* Names + colors */}
+          <div className="mb-4">
             <div className="flex items-center gap-2 mb-2">
               <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-white border border-gray-300 text-gray-900
                                dark:bg-slate-800 dark:border-slate-600 dark:text-slate-100">
@@ -341,13 +336,7 @@ function TicTacToe(){
                 value={player1} onChange={e=>setPlayer1(e.target.value)} placeholder="Player 1"/>
               <input type="color" className="w-8 h-8 rounded" value={colorX} onChange={e=>setColorX(e.target.value)}/>
             </div>
-            <div className="text-sm opacity-80 mb-1">Score: {scores[player1]||0}</div>
-            <Tally count={scores[player1]||0} color={colorX} />
-          </div>
-
-          {/* Player 2 */}
-          <div className="mb-6">
-            <div className="flex items-center gap-2 mb-2">
+            <div className="flex items-center gap-2">
               <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-white border border-gray-300 text-gray-900
                                dark:bg-slate-800 dark:border-slate-600 dark:text-slate-100">
                 <span style={{color:colorO}} className="font-extrabold">O</span>
@@ -358,12 +347,54 @@ function TicTacToe(){
                 value={player2} onChange={e=>setPlayer2(e.target.value)} placeholder="Player 2"/>
               <input type="color" className="w-8 h-8 rounded" value={colorO} onChange={e=>setColorO(e.target.value)}/>
             </div>
-            <div className="text-sm opacity-80 mb-1">Score: {scores[player2]||0}</div>
-            <Tally count={scores[player2]||0} color={colorO} />
           </div>
 
-          {/* Streak Leaderboard */}
+          {/* Toggles */}
+          <div className="mb-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <input id="ai" type="checkbox" checked={playAI} onChange={e=>setPlayAI(e.target.checked)} />
+              <label htmlFor="ai">Play vs AI (AI is O)</label>
+            </div>
+            {playAI && (
+              <select
+                className="w-full p-2 rounded border border-gray-300 bg-white text-gray-900
+                           dark:bg-slate-800 dark:border-slate-600 dark:text-slate-100"
+                value={difficulty} onChange={e=>setDifficulty(e.target.value)}>
+                <option>Beginner</option>
+                <option>Intermediate</option>
+                <option>Expert</option>
+              </select>
+            )}
+            <div className="flex items-center gap-2">
+              <input id="sound" type="checkbox" checked={localStorage.getItem("soundOn")!=="false"} onChange={e=>{localStorage.setItem("soundOn", String(e.target.checked)); location.reload();}} />
+              <label htmlFor="sound">Sound</label>
+              <button
+                onClick={()=>setDarkMode(v=>!v)}
+                className="ml-auto px-3 py-2 rounded bg-gray-700 text-white hover:bg-gray-600
+                           dark:bg-slate-600 dark:hover:bg-slate-500">
+                {darkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+              </button>
+            </div>
+          </div>
+
+          {/* Scores + tallies */}
           <div className="mb-4">
+            <h3 className="font-bold mb-1">Scores</h3>
+            <div className="mb-3">
+              <div className="text-sm opacity-90 mb-1">{player1}: <span className="font-semibold">{scores[player1]||0}</span></div>
+              <Tally count={scores[player1]||0} color={colorX} />
+            </div>
+            <div className="mb-3">
+              <div className="text-sm opacity-90 mb-1">{player2}: <span className="font-semibold">{scores[player2]||0}</span></div>
+              <Tally count={scores[player2]||0} color={colorO} />
+            </div>
+            <button onClick={resetScores} className="w-full py-2 rounded bg-rose-600 text-white font-semibold hover:bg-rose-500">
+              Reset Scores
+            </button>
+          </div>
+
+          {/* Streaks */}
+          <div>
             <h3 className="font-bold mb-1">Win Streaks</h3>
             {Object.keys(streaks).length===0 ? (
               <p className="text-sm opacity-70">No streaks yet.</p>
@@ -372,12 +403,6 @@ function TicTacToe(){
                 <div key={name} className="text-sm">{name}: {st}</div>
               ))
             )}
-          </div>
-
-          <div className="flex gap-2">
-            <button onClick={resetScores} className="flex-1 py-2 rounded bg-rose-600 text-white font-semibold hover:bg-rose-500">
-              Reset Scores
-            </button>
           </div>
         </aside>
       </div>
