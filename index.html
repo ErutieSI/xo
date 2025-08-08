@@ -16,7 +16,7 @@
   @keyframes spin3D{0%{transform:rotateY(0)}100%{transform:rotateY(360deg)}}
   .win-spin{animation:spin3D 1s linear infinite;display:inline-block}
   @keyframes popAnim{0%{transform:scale(.5);opacity:0}60%{transform:scale(1.2);opacity:1}100%{transform:scale(1)}}
-  .pop{animation:popAnim .22s ease;display:inline-block}
+  .pop{animation:popAnim .22s ease;display:inline-block;will-change:transform}
   .mark-3d{
     text-shadow:
       0 1px 0 rgba(0,0,0,.25),
@@ -25,6 +25,8 @@
       0 4px 0 rgba(0,0,0,.10);
     transform: translateZ(0);
   }
+  /* Stable mark size so cells don’t reflow */
+  .mark-size { font-size: clamp(42px, 9vmin, 96px); line-height: 1; }
 </style>
 </head>
 <body class="min-h-screen bg-gray-50 text-gray-900 dark:bg-slate-900 dark:text-slate-100">
@@ -33,7 +35,7 @@
 <script type="text/babel">
 const { useState, useEffect, useMemo, useRef } = React;
 
-/* --- Tiny SVG Tally component --- */
+/* --- Tally SVG --- */
 function Tally({ count, color }) {
   const groups = Math.floor(count / 5);
   const rem = count % 5;
@@ -66,7 +68,7 @@ function TicTacToe(){
 
   // Players (Human X; if AI enabled, AI plays O)
   const [player1, setPlayer1] = useState(localStorage.getItem("player1")||"Player 1"); // X
-  const [player2, setPlayer2] = useState(localStorage.getItem("player2")||"Player 2"); // O
+  const [player2, setPlayer2] = useState(localStorage.getItem("player2")||"Player 2"); // O (-> "AI" when AI on)
   const [colorX, setColorX]   = useState(localStorage.getItem("colorX")||"#06b6d4");
   const [colorO, setColorO]   = useState(localStorage.getItem("colorO")||"#3b82f6");
 
@@ -122,6 +124,11 @@ function TicTacToe(){
 
   useEffect(()=>{ document.documentElement.classList.toggle("dark",darkMode); },[darkMode]);
 
+  // When AI mode is turned on, default Player 2 name to "AI"
+  useEffect(()=>{
+    if (playAI) setPlayer2("AI");
+  }, [playAI]);
+
   function vibrate(ms){ if (navigator.vibrate) navigator.vibrate(ms); }
 
   // Winner detection
@@ -168,8 +175,10 @@ function TicTacToe(){
     if (difficulty==="Expert"){
       move = minimax([...currentBoard], true, ai, human).move;
     } else {
-      const rand = (difficulty==="Beginner") ? 0.75 : 0.5;
-      if (Math.random() < rand){
+      // Beginner: 50% random / 50% block-or-win
+      // Intermediate: 25% random / 75% block-or-win
+      const randomChance = (difficulty==="Beginner") ? 0.50 : 0.25;
+      if (Math.random() < randomChance){
         const empty = currentBoard.map((v,i)=>v?null:i).filter(v=>v!==null);
         move = empty[Math.floor(Math.random()*empty.length)];
       } else {
@@ -183,7 +192,7 @@ function TicTacToe(){
     return move;
   }
 
-  // AI acts only when AI's turn (O), and only in AI mode, and only if game not over
+  // AI acts only when AI's turn (O), AI mode on, and game not over
   useEffect(()=>{
     if (!playAI || gameOver || xIsNext) return;
     const id = setTimeout(()=>{
@@ -225,12 +234,13 @@ function TicTacToe(){
     setXIsNext(v=>!v);
   }
 
+  // PvP: both players click; AI mode: only human (X) clicks
   function onCellClick(i){
     if (gameOver) return;
     if (playAI){
-      if (xIsNext) placeMark(i); // only human can click
+      if (xIsNext) placeMark(i);
     } else {
-      placeMark(i);              // PvP allows either side on their turn
+      placeMark(i);
     }
   }
 
@@ -240,6 +250,16 @@ function TicTacToe(){
     setJustPlaced(null);
     setStatusMsg("");
     setXIsNext(starterMark==='X');
+  }
+
+  // New: Reset Game button (clears current board/round; does not touch scores)
+  function resetGame(){
+    setBoard(EMPTY);
+    setWinningLine([]);
+    setJustPlaced(null);
+    setStatusMsg("");
+    setXIsNext(true);
+    setStarterMark('X');
   }
 
   function resetScores(){
@@ -265,12 +285,13 @@ function TicTacToe(){
         {/* LEFT: Board */}
         <div className="flex-1 w-full">
           <div className="relative mx-auto" style={{ width: 'min(94vw, 78vh)', maxWidth:'820px' }}>
-            {/* ✅ FIX: allow clicks through this overlay */}
+            {/* Turn overlay (click-through) */}
             {!gameOver && (
               <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
                 <div className={turnOverlayClass}>{turnName}</div>
               </div>
             )}
+            {/* Result overlay */}
             {gameOver && (
               <div className="absolute inset-0 flex flex-col items-center justify-center z-20">
                 <div className={resultOverlayClass}>
@@ -285,20 +306,21 @@ function TicTacToe(){
               </div>
             )}
 
-            <div className="grid grid-cols-3 gap-3" style={{ height: 'min(94vw, 78vh)' }}>
+            {/* Grid: fixed height; cells fill; prevent overflow shifts */}
+            <div className="grid grid-cols-3 grid-rows-3 gap-3 h-[min(94vw,78vh)]">
               {board.map((cell,idx)=>(
                 <button
                   key={idx}
                   onClick={()=>onCellClick(idx)}
                   disabled={gameOver || (playAI && !xIsNext)}
-                  className={`relative rounded-xl shadow cell-animate border
+                  className={`relative rounded-xl shadow cell-animate border overflow-hidden
                               bg-white border-gray-300
                               dark:bg-slate-700 dark:border-slate-600
-                              flex items-center justify-center text-[10vw] sm:text-6xl md:text-7xl font-extrabold
+                              flex items-center justify-center font-extrabold
                               ${winningLine.includes(idx) ? 'border-4 border-green-800 dark:border-green-400' : ''}`}
                   style={{color: cell==="X" ? colorX : colorO}}
                 >
-                  <span className={`mark-3d ${winningLine.includes(idx) ? 'win-spin' : (justPlaced===idx ? 'pop' : '')}`}>
+                  <span className={`mark-3d mark-size ${winningLine.includes(idx) ? 'win-spin' : (justPlaced===idx ? 'pop' : '')}`}>
                     {cell}
                   </span>
                 </button>
@@ -362,6 +384,16 @@ function TicTacToe(){
             </div>
           </div>
 
+          {/* New: Reset Game */}
+          <div className="flex gap-2 mb-4">
+            <button onClick={resetGame} className="flex-1 py-2 rounded bg-amber-600 text-white font-semibold hover:bg-amber-500">
+              Reset Game
+            </button>
+            <button onClick={resetScores} className="flex-1 py-2 rounded bg-rose-600 text-white font-semibold hover:bg-rose-500">
+              Reset Scores
+            </button>
+          </div>
+
           <div className="mb-4">
             <h3 className="font-bold mb-1">Scores</h3>
             <div className="mb-3">
@@ -372,9 +404,6 @@ function TicTacToe(){
               <div className="text-sm opacity-90 mb-1">{player2}: <span className="font-semibold">{scores[player2]||0}</span></div>
               <Tally count={scores[player2]||0} color={colorO} />
             </div>
-            <button onClick={resetScores} className="w-full py-2 rounded bg-rose-600 text-white font-semibold hover:bg-rose-500">
-              Reset Scores
-            </button>
           </div>
 
           <div>
